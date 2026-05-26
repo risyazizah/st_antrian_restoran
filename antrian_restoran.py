@@ -1,314 +1,338 @@
 import streamlit as st
+import time
 from datetime import datetime
 
+# ─────────────────────────────────────────
+#   QUEUE LINKED LIST IMPLEMENTATION
+# ─────────────────────────────────────────
 
-# =============================================
-# NODE — menyimpan data satu tamu
-# =============================================
 class Node:
-    """Node untuk linked list"""
-
-    def __init__(self, nama, jumlah_orang, catatan=""):
+    """Setiap tamu adalah sebuah Node."""
+    def __init__(self, nama: str, jumlah_orang: int, catatan: str = ""):
         self.nama = nama
         self.jumlah_orang = jumlah_orang
         self.catatan = catatan
-        self.waktu = datetime.now().strftime("%H:%M")
+        self.waktu_daftar = datetime.now().strftime("%H:%M:%S")
         self.next = None
 
 
-# =============================================
-# QUEUE LINKED LIST — antrian tamu restoran
-# =============================================
 class QueueLinkedList:
-    """Implementasi Queue menggunakan Linked List"""
+    """Antrian berbasis Linked List — FIFO."""
 
     def __init__(self):
-        self.front = None   # tamu paling depan (giliran berikutnya)
-        self.rear = None    # tamu paling belakang (baru masuk)
-        self.count = 0
+        self.head = None   # Tamu paling depan
+        self.tail = None   # Tamu paling belakang
+        self._size = 0
 
-    def enqueue(self, nama, jumlah_orang, catatan=""):
-        """Menambahkan tamu baru ke belakang antrian"""
+    def is_empty(self) -> bool:
+        return self.head is None
 
-        node_baru = Node(nama, jumlah_orang, catatan)
-
-        if self.rear is None:
-            # Antrian masih kosong, tamu ini jadi yang pertama
-            self.front = node_baru
-            self.rear = node_baru
+    def enqueue(self, nama: str, jumlah_orang: int, catatan: str = ""):
+        """Tambah tamu baru ke belakang antrian."""
+        node = Node(nama, jumlah_orang, catatan)
+        if self.tail:
+            self.tail.next = node
         else:
-            # Sambungkan ke tamu terakhir, lalu pindahkan rear
-            self.rear.next = node_baru
-            self.rear = node_baru
+            self.head = node
+        self.tail = node
+        self._size += 1
 
-        self.count += 1
-
-    def dequeue(self):
-        """Melayani tamu paling depan, hapus dari antrian"""
-
+    def dequeue(self) -> Node | None:
+        """Layani tamu paling depan."""
         if self.is_empty():
             return None
+        served = self.head
+        self.head = self.head.next
+        if self.head is None:
+            self.tail = None
+        self._size -= 1
+        served.next = None
+        return served
 
-        tamu = self.front
-        self.front = self.front.next
+    def peek(self) -> Node | None:
+        """Lihat tamu terdepan tanpa menghapus."""
+        return self.head
 
-        if self.front is None:
-            self.rear = None
+    def size(self) -> int:
+        return self._size
 
-        self.count -= 1
-        return tamu
-
-    def peek(self):
-        """Melihat tamu paling depan tanpa menghapus"""
-        return self.front if not self.is_empty() else None
-
-    def is_empty(self):
-        """Mengecek apakah antrian kosong"""
-        return self.front is None
-
-    def get_size(self):
-        """Mengembalikan jumlah kelompok dalam antrian"""
-        return self.count
-
-    def ke_list(self):
-        """Mengubah linked list menjadi list biasa untuk ditampilkan"""
-
-        hasil = []
-        current = self.front
-        while current:
-            hasil.append(current)
-            current = current.next
-        return hasil
+    def to_list(self) -> list[Node]:
+        """Konversi antrian ke Python list (untuk tampilan)."""
+        result = []
+        cur = self.head
+        while cur:
+            result.append(cur)
+            cur = cur.next
+        return result
 
 
-# =============================================
-# SETUP SESSION STATE
-# =============================================
-if "antrian" not in st.session_state:
-    st.session_state.antrian = QueueLinkedList()
-if "riwayat" not in st.session_state:
-    st.session_state.riwayat = []
+# ─────────────────────────────────────────
+#   SESSION STATE INIT
+# ─────────────────────────────────────────
+
+if "queue" not in st.session_state:
+    st.session_state.queue = QueueLinkedList()
+
+if "log" not in st.session_state:
+    st.session_state.log = []   # Riwayat tamu yang telah dilayani
+
 if "total_dilayani" not in st.session_state:
     st.session_state.total_dilayani = 0
 
-antrian = st.session_state.antrian
+queue: QueueLinkedList = st.session_state.queue
 
 
-# =============================================
-# PAGE CONFIG & CSS
-# =============================================
-st.set_page_config(page_title="Antrian Restoran", page_icon="🍽️", layout="wide")
+# ─────────────────────────────────────────
+#   PAGE CONFIG & CUSTOM CSS
+# ─────────────────────────────────────────
+
+st.set_page_config(
+    page_title="Antrian Restoran",
+    page_icon="🍽️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
 
+/* ── Base ── */
 html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: #f9f4ee;
-    color: #1e1a14;
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0f0d0a;
+    color: #f0ead6;
 }
 
+/* ── Hide Streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 2rem 3rem 4rem; max-width: 1100px; }
+.block-container { padding: 2rem 3rem 4rem; max-width: 1200px; }
 
-/* HERO */
+/* ── Hero Title ── */
 .hero {
-    background: #2c1a0e;
-    border-radius: 20px;
-    padding: 2.5rem 2rem;
     text-align: center;
-    margin-bottom: 1.8rem;
+    padding: 2.5rem 0 1.5rem;
+    margin-bottom: 0.5rem;
 }
 .hero h1 {
-    font-size: 2.6rem;
-    font-weight: 700;
-    color: #f5deb3;
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    font-weight: 900;
+    letter-spacing: -1px;
+    color: #f0ead6;
     margin: 0;
-    letter-spacing: -0.5px;
+    line-height: 1.1;
 }
-.hero p {
-    color: #a07850;
-    font-size: 0.85rem;
-    letter-spacing: 0.2em;
+.hero .accent { color: #c9a96e; }
+.hero .subtitle {
+    font-size: 0.9rem;
+    letter-spacing: 0.25em;
     text-transform: uppercase;
-    margin-top: 6px;
+    color: #7a6e5a;
+    margin-top: 0.5rem;
+}
+.divider {
+    border: none;
+    border-top: 1px solid #2a2520;
+    margin: 1.5rem 0;
 }
 
-/* STAT CARDS */
-.stat-row { display: flex; gap: 12px; margin-bottom: 1.8rem; }
-.stat {
+/* ── Stat Cards ── */
+.stat-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card {
     flex: 1;
-    border-radius: 14px;
-    padding: 1.2rem 1rem;
+    background: #1a1714;
+    border: 1px solid #2a2520;
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
     text-align: center;
 }
-.stat-antri  { background: #2c1a0e; }
-.stat-tamu   { background: #7c3f1a; }
-.stat-selesai { background: #b85c1a; }
-.stat .num {
+.stat-card .num {
+    font-family: 'Playfair Display', serif;
     font-size: 2.4rem;
     font-weight: 700;
-    color: #f5deb3;
+    color: #c9a96e;
     line-height: 1;
 }
-.stat .lbl {
-    font-size: 0.72rem;
-    color: #c8975a;
-    text-transform: uppercase;
+.stat-card .lbl {
+    font-size: 0.75rem;
     letter-spacing: 0.15em;
-    margin-top: 5px;
+    text-transform: uppercase;
+    color: #7a6e5a;
+    margin-top: 0.3rem;
 }
 
-/* FORM CARD */
-.form-card {
-    background: white;
-    border: 1px solid #e8ddd0;
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1.2rem;
-}
-.form-card h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #2c1a0e;
-    margin-bottom: 1rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 2px solid #f5deb3;
-}
-
-/* INPUT FIELDS */
-.stTextInput input, .stNumberInput input {
-    background: #fdf8f3 !important;
-    border: 1.5px solid #e0d0bc !important;
-    border-radius: 10px !important;
-    color: #1e1a14 !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    font-size: 14px !important;
-}
-.stTextInput input:focus, .stNumberInput input:focus {
-    border-color: #b85c1a !important;
-    box-shadow: 0 0 0 3px rgba(184,92,26,0.1) !important;
-}
-label { font-size: 13px !important; color: #6b5a47 !important; font-weight: 500 !important; }
-
-/* BUTTONS */
-.stButton > button {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    font-weight: 600 !important;
-    border-radius: 10px !important;
-    font-size: 14px !important;
-    border: none !important;
-    transition: all 0.2s !important;
-    padding: 0.55rem 1rem !important;
-}
-div[data-testid="column"]:nth-child(1) .stButton > button {
-    background: #2c1a0e !important;
-    color: #f5deb3 !important;
-}
-div[data-testid="column"]:nth-child(1) .stButton > button:hover {
-    background: #4a2e18 !important;
-}
-div[data-testid="column"]:nth-child(2) .stButton > button {
-    background: #b85c1a !important;
-    color: white !important;
-}
-div[data-testid="column"]:nth-child(2) .stButton > button:hover {
-    background: #d4712a !important;
-}
-
-/* QUEUE CARDS */
-.q-card {
-    background: white;
-    border: 1px solid #e8ddd0;
-    border-radius: 14px;
-    padding: 1rem 1.2rem;
-    margin-bottom: 10px;
+/* ── Queue Cards ── */
+.queue-card {
+    background: #1a1714;
+    border: 1px solid #2a2520;
+    border-left: 3px solid #c9a96e;
+    border-radius: 10px;
+    padding: 1rem 1.4rem;
+    margin-bottom: 0.7rem;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 1.2rem;
+    transition: border-color 0.2s;
 }
-.q-card.next {
-    background: #fff8f0;
-    border: 2px solid #b85c1a;
+.queue-card:hover { border-color: #e0c285; }
+.queue-card.first {
+    border-left-color: #e8593a;
+    background: #1e1510;
 }
-.q-avatar {
-    width: 42px; height: 42px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 14px;
-    flex-shrink: 0;
+.queue-card .no {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #3a352c;
+    min-width: 2rem;
+    text-align: center;
 }
-.av-next   { background: #f5deb3; color: #7c3f1a; }
-.av-normal { background: #f0ebe4; color: #8a7060; }
-.q-info { flex: 1; }
-.q-nama { font-size: 15px; font-weight: 600; color: #1e1a14; }
-.q-meta { font-size: 12px; color: #a07850; margin-top: 3px; }
-.q-catatan { font-size: 11px; color: #b85c1a; margin-top: 2px; }
-.badge-next {
-    background: #f5deb3; color: #7c3f1a;
-    font-size: 10px; font-weight: 700;
-    border-radius: 20px; padding: 3px 10px;
-    text-transform: uppercase; letter-spacing: 0.05em;
+.queue-card.first .no { color: #e8593a; }
+.queue-card .info { flex: 1; }
+.queue-card .info .name {
+    font-weight: 500;
+    font-size: 1.05rem;
+    color: #f0ead6;
 }
-.badge-no {
-    background: #f0ebe4; color: #a07850;
-    font-size: 12px; border-radius: 20px; padding: 3px 10px;
+.queue-card .info .meta {
+    font-size: 0.78rem;
+    color: #7a6e5a;
+    margin-top: 0.2rem;
 }
-.badge-orang { font-size: 13px; color: #a07850; margin-top: 4px; }
+.queue-card .badge {
+    background: #2a2520;
+    border-radius: 20px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    color: #c9a96e;
+    white-space: nowrap;
+}
+.tag-next {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #e8593a;
+    border: 1px solid #e8593a;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}
 
-/* RIWAYAT */
-.log-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    background: #f0faf4;
-    border: 1px solid #b8e0c8;
-    border-radius: 10px;
-    margin-bottom: 7px;
-    font-size: 13px;
-}
-.log-nama { flex: 1; font-weight: 600; color: #1a4a2e; }
-.log-meta { color: #5a8a6a; font-size: 11px; }
-
-/* EMPTY STATE */
-.empty {
-    text-align: center; padding: 3rem 1rem;
-    color: #c8b8a0; font-size: 0.95rem;
-    background: white; border: 1px solid #e8ddd0;
+/* ── Form Area ── */
+.form-box {
+    background: #1a1714;
+    border: 1px solid #2a2520;
     border-radius: 14px;
+    padding: 1.8rem;
+    margin-bottom: 1.5rem;
+}
+.form-box h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    margin-bottom: 1.2rem;
+    color: #c9a96e;
+}
+
+/* ── Streamlit input overrides ── */
+input[type="text"], input[type="number"], textarea, .stTextInput input,
+.stNumberInput input, .stTextArea textarea {
+    background: #0f0d0a !important;
+    border: 1px solid #2a2520 !important;
+    border-radius: 8px !important;
+    color: #f0ead6 !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+input::placeholder { color: #4a4337 !important; }
+
+/* ── Buttons ── */
+.stButton > button {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+    border-radius: 8px !important;
+    transition: all 0.2s !important;
+    border: none !important;
+}
+div[data-testid="column"]:nth-child(1) .stButton > button {
+    background: #c9a96e !important;
+    color: #0f0d0a !important;
+}
+div[data-testid="column"]:nth-child(1) .stButton > button:hover {
+    background: #e0c285 !important;
+}
+div[data-testid="column"]:nth-child(2) .stButton > button {
+    background: #e8593a !important;
+    color: #fff !important;
+}
+div[data-testid="column"]:nth-child(2) .stButton > button:hover {
+    background: #ff6b4a !important;
+}
+
+/* ── Log table ── */
+.log-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #1e1c18;
+    font-size: 0.85rem;
+    color: #a09070;
+}
+.log-row:last-child { border-bottom: none; }
+.log-row .lname { color: #c9a96e; font-weight: 500; flex: 1; }
+.log-row .ltime { color: #4a4337; font-size: 0.75rem; }
+
+/* ── Section labels ── */
+.section-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #4a4337;
+    margin-bottom: 0.8rem;
+    margin-top: 0.5rem;
+}
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #3a352c;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
 }
 </style>
 """, unsafe_allow_html=True)
 
 
-# =============================================
-# HERO
-# =============================================
+# ─────────────────────────────────────────
+#   HERO
+# ─────────────────────────────────────────
+
 st.markdown("""
 <div class="hero">
-    <h1>🍽️ Antrian Restoran</h1>
-    <p>Sistem Manajemen Antrian · Queue Linked List</p>
+    <h1>🍽 <span class="accent">La File</span> Restoran</h1>
+    <div class="subtitle">Sistem Manajemen Antrian &nbsp;·&nbsp; Queue Linked List</div>
 </div>
+<hr class="divider"/>
 """, unsafe_allow_html=True)
 
 
-# =============================================
-# STATISTIK
-# =============================================
-daftar = antrian.ke_list()
-total_orang = sum(t.jumlah_orang for t in daftar)
+# ─────────────────────────────────────────
+#   STATS
+# ─────────────────────────────────────────
+
+total_orang = sum(n.jumlah_orang for n in queue.to_list())
 
 st.markdown(f"""
 <div class="stat-row">
-    <div class="stat stat-antri">
-        <div class="num">{antrian.get_size()}</div>
+    <div class="stat-card">
+        <div class="num">{queue.size()}</div>
         <div class="lbl">Kelompok Antri</div>
     </div>
-    <div class="stat stat-tamu">
+    <div class="stat-card">
         <div class="num">{total_orang}</div>
         <div class="lbl">Total Tamu</div>
     </div>
-    <div class="stat stat-selesai">
+    <div class="stat-card">
         <div class="num">{st.session_state.total_dilayani}</div>
         <div class="lbl">Sudah Dilayani</div>
     </div>
@@ -316,89 +340,95 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# =============================================
-# LAYOUT 2 KOLOM
-# =============================================
-kiri, kanan = st.columns([1, 1], gap="large")
+# ─────────────────────────────────────────
+#   MAIN LAYOUT — 2 kolom
+# ─────────────────────────────────────────
 
-# ── KOLOM KIRI: Form ──
-with kiri:
-    st.markdown('<div class="form-card"><h3>📋 Daftarkan Tamu Baru</h3>', unsafe_allow_html=True)
+col_left, col_right = st.columns([1.1, 1], gap="large")
 
-    nama    = st.text_input("Nama tamu / kode meja", placeholder="contoh: Budi Santoso")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        jumlah = st.number_input("Jumlah orang", min_value=1, max_value=20, value=2)
-    with col_b:
-        catatan = st.text_input("Catatan", placeholder="VIP, alergi...")
+# ── KOLOM KIRI: Form & Aksi ──────────────
+with col_left:
+    st.markdown('<div class="section-label">Daftarkan Tamu Baru</div>', unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        nama = st.text_input("Nama / Kode Meja", placeholder="cth. Budi Santoso")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            jumlah = st.number_input("Jumlah Orang", min_value=1, max_value=20, value=2)
+        with col_b:
+            catatan = st.text_input("Catatan", placeholder="Alergi, VIP, dll.")
 
+    st.markdown("<br/>", unsafe_allow_html=True)
     col_btn1, col_btn2 = st.columns(2)
 
     with col_btn1:
-        if st.button("➕ Tambah Antrian", use_container_width=True):
+        if st.button("＋ Tambah ke Antrian", use_container_width=True):
             if nama.strip():
-                antrian.enqueue(nama.strip(), jumlah, catatan.strip())
-                st.toast(f"✅ {nama} masuk antrian!")
+                queue.enqueue(nama.strip(), jumlah, catatan.strip())
+                st.toast(f"✅ {nama} masuk antrian!", icon="🍽️")
                 st.rerun()
             else:
-                st.warning("Isi nama tamu dulu ya.")
+                st.warning("Masukkan nama tamu terlebih dahulu.")
 
     with col_btn2:
-        if st.button("✅ Layani Berikutnya", use_container_width=True):
-            tamu = antrian.dequeue()
-            if tamu:
-                st.session_state.riwayat.insert(0, tamu)
+        if st.button("✓ Layani Tamu Berikut", use_container_width=True):
+            served = queue.dequeue()
+            if served:
+                st.session_state.log.insert(0, served)
                 st.session_state.total_dilayani += 1
-                st.toast(f"🎉 {tamu.nama} sedang dilayani!")
+                st.toast(f"🎉 {served.nama} kini dilayani!", icon="✨")
                 st.rerun()
             else:
-                st.warning("Antrian masih kosong.")
+                st.warning("Antrian sedang kosong.")
 
-    # Riwayat dilayani
-    if st.session_state.riwayat:
+    # ── Riwayat ──
+    if st.session_state.log:
         st.markdown("<br/>", unsafe_allow_html=True)
-        st.markdown("**✔ Riwayat Dilayani**")
-        for tamu in st.session_state.riwayat[:6]:
-            st.markdown(f"""
-            <div class="log-item">
-                <span style="color:#2a7a4a;font-size:16px">✓</span>
-                <span class="log-nama">{tamu.nama}</span>
-                <span class="log-meta">{tamu.jumlah_orang} orang · {tamu.waktu}</span>
-            </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">Riwayat Dilayani</div>', unsafe_allow_html=True)
+        rows_html = ""
+        for tamu in st.session_state.log[:8]:
+            rows_html += f"""
+            <div class="log-row">
+                <span class="lname">✓ {tamu.nama}</span>
+                <span>{tamu.jumlah_orang} org</span>
+                <span class="ltime">{tamu.waktu_daftar}</span>
+            </div>"""
+        st.markdown(f'<div style="background:#1a1714;border:1px solid #2a2520;border-radius:10px;padding:1rem 1.2rem">{rows_html}</div>', unsafe_allow_html=True)
 
 
-# ── KOLOM KANAN: Daftar Antrian ──
-with kanan:
-    st.markdown("**🪑 Antrian Saat Ini**")
-    st.markdown("<br/>", unsafe_allow_html=True)
+# ── KOLOM KANAN: Antrian Saat Ini ───────
+with col_right:
+    st.markdown('<div class="section-label">Antrian Saat Ini</div>', unsafe_allow_html=True)
 
-    daftar = antrian.ke_list()
-
-    if not daftar:
-        st.markdown('<div class="empty">🪑<br/>Antrian masih kosong</div>', unsafe_allow_html=True)
+    antrian = queue.to_list()
+    if not antrian:
+        st.markdown('<div class="empty-state">Belum ada tamu<br/><span style="font-size:2rem">🪑</span></div>', unsafe_allow_html=True)
     else:
-        for i, tamu in enumerate(daftar):
-            nomor   = i + 1
-            is_next = (i == 0)
-            inisial = "".join(w[0] for w in tamu.nama.split())[:2].upper()
-            av_cls  = "av-next" if is_next else "av-normal"
-            card_cls = "q-card next" if is_next else "q-card"
-            badge   = '<span class="badge-next">▶ Next</span>' if is_next else f'<span class="badge-no">#{nomor}</span>'
-            catatan_html = f'<div class="q-catatan">📝 {tamu.catatan}</div>' if tamu.catatan else ""
-
+        for i, tamu in enumerate(antrian):
+            is_first = (i == 0)
+            card_cls = "queue-card first" if is_first else "queue-card"
+            next_tag = '<span class="tag-next">NEXT</span>' if is_first else ""
+            catatan_html = f"<br/>📝 {tamu.catatan}" if tamu.catatan else ""
             st.markdown(f"""
             <div class="{card_cls}">
-                <div class="q-avatar {av_cls}">{inisial}</div>
-                <div class="q-info">
-                    <div class="q-nama">{tamu.nama}</div>
-                    <div class="q-meta">⏱ {tamu.waktu}</div>
-                    {catatan_html}
+                <div class="no">#{i+1}</div>
+                <div class="info">
+                    <div class="name">{tamu.nama}{next_tag}</div>
+                    <div class="meta">⏱ {tamu.waktu_daftar}{catatan_html}</div>
                 </div>
-                <div style="text-align:right">
-                    {badge}
-                    <div class="badge-orang">👥 {tamu.jumlah_orang}</div>
-                </div>
+                <div class="badge">👥 {tamu.jumlah_orang}</div>
             </div>
             """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────
+#   FOOTER
+# ─────────────────────────────────────────
+
+st.markdown("<br/>", unsafe_allow_html=True)
+st.markdown("""
+<hr class="divider"/>
+<div style="text-align:center;font-size:0.72rem;color:#3a352c;letter-spacing:0.15em;text-transform:uppercase;">
+    La File Restoran &nbsp;·&nbsp; Queue Linked List &nbsp;·&nbsp; Python + Streamlit
+</div>
+""", unsafe_allow_html=True)
