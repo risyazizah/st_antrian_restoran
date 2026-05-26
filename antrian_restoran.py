@@ -309,7 +309,7 @@ div[data-testid="column"]:nth-child(2) .stButton > button:hover {
 
 st.markdown("""
 <div class="hero">
-    <h1>🍽 <span class="accent">La File</span> Restoran</h1>
+    <h1>🍽 <span class="accent">MJ</span> Restoran</h1>
     <div class="subtitle">Sistem Manajemen Antrian &nbsp;·&nbsp; Queue Linked List</div>
 </div>
 <hr class="divider"/>
