@@ -429,6 +429,6 @@ st.markdown("<br/>", unsafe_allow_html=True)
 st.markdown("""
 <hr class="divider"/>
 <div style="text-align:center;font-size:0.72rem;color:#3a352c;letter-spacing:0.15em;text-transform:uppercase;">
-    La File Restoran &nbsp;·&nbsp; Queue Linked List &nbsp;·&nbsp; Python + Streamlit
+    MJ Restoran &nbsp;·&nbsp; 
 </div>
 """, unsafe_allow_html=True)
