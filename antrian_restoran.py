@@ -315,20 +315,6 @@ st.markdown("""
 <hr class="divider"/>
 """, unsafe_allow_html=True)
 
-# Jam realtime
-st.markdown(
-    f"""
-    <div style="
-        text-align:center;
-        color:#c9a96e;
-        font-size:1.1rem;
-        margin-bottom:20px;
-        font-weight:500;">
-        🕒 {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
-    </div>
-    """,
-    unsafe_allow_html=True
-)
 
 # ─────────────────────────────────────────
 #   STATS
