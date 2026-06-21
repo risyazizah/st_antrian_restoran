@@ -1,7 +1,6 @@
 import streamlit as st
-import time
 from datetime import datetime
-
+from streamlit_autorefresh import st_autorefresh
 # ─────────────────────────────────────────
 #   QUEUE LINKED LIST IMPLEMENTATION
 # ─────────────────────────────────────────
@@ -80,7 +79,8 @@ if "total_dilayani" not in st.session_state:
     st.session_state.total_dilayani = 0
 
 queue: QueueLinkedList = st.session_state.queue
-
+# Auto refresh setiap 1 detik
+st_autorefresh(interval=1000, key="clock_refresh")
 
 # ─────────────────────────────────────────
 #   PAGE CONFIG & CUSTOM CSS
@@ -315,6 +315,20 @@ st.markdown("""
 <hr class="divider"/>
 """, unsafe_allow_html=True)
 
+# Jam realtime
+st.markdown(
+    f"""
+    <div style="
+        text-align:center;
+        color:#c9a96e;
+        font-size:1.1rem;
+        margin-bottom:20px;
+        font-weight:500;">
+        🕒 {datetime.now().strftime("%d %B %Y | %H:%M:%S")}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # ─────────────────────────────────────────
 #   STATS
