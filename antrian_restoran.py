@@ -65,6 +65,16 @@ class QueueLinkedList:
             cur = cur.next
         return result
 
+# ─────────────────────────────────────────
+#   PAGE CONFIG & CUSTOM CSS
+# ─────────────────────────────────────────
+
+st.set_page_config(
+    page_title="Antrian Restoran",
+    page_icon="🍽️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 # ─────────────────────────────────────────
 #   SESSION STATE INIT
@@ -83,16 +93,7 @@ queue: QueueLinkedList = st.session_state.queue
 
 
 
-# ─────────────────────────────────────────
-#   PAGE CONFIG & CUSTOM CSS
-# ─────────────────────────────────────────
 
-st.set_page_config(
-    page_title="Antrian Restoran",
-    page_icon="🍽️",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
 
 st.markdown("""
 <style>
