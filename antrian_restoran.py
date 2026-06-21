@@ -1,6 +1,5 @@
-import streamlit as st
 from datetime import datetime
-
+from zoneinfo import ZoneInfo
 # ─────────────────────────────────────────
 #   QUEUE LINKED LIST IMPLEMENTATION
 # ─────────────────────────────────────────
@@ -11,7 +10,9 @@ class Node:
         self.nama = nama
         self.jumlah_orang = jumlah_orang
         self.catatan = catatan
-        self.waktu_daftar = datetime.now().strftime("%H:%M:%S")
+       self.waktu_daftar = datetime.now(
+              ZoneInfo("Asia/Jakarta")
+       ).strftime("%H:%M:%S")
         self.next = None
 
 
